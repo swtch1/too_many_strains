@@ -10,6 +10,18 @@ set -euo pipefail
 SCRIPT_DIR="cmd/database-migration"
 CONFIG_FILE="config.yaml"
 
+function cleanup() {
+  # if we make it to the script dir, cleanup the config from there
+  if [[ $(basename "$(pwd)") == "database-migration" ]];then
+    rm -f "$CONFIG_FILE"
+  else
+    rm -f "${SCRIPT_DIR}/${CONFIG_FILE}"
+  fi
+}
+
+# ensure cleanup on exit
+trap cleanup EXIT
+
 # make sure we're in the right directory
 cd "$(dirname "$0")"
 
