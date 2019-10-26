@@ -8,14 +8,14 @@
 set -euo pipefail
 
 SCRIPT_DIR="cmd/database-migration"
-CONFIG_FILE="config.yaml"
+SEED_FILE="strains.json"
 
 function cleanup() {
   # if we make it to the script dir, cleanup the config from there
   if [[ $(basename "$(pwd)") == "database-migration" ]];then
-    rm -f "$CONFIG_FILE"
+    rm -f "$SEED_FILE"
   else
-    rm -f "${SCRIPT_DIR}/${CONFIG_FILE}"
+    rm -f "${SCRIPT_DIR}/${SEED_FILE}"
   fi
 }
 
@@ -25,10 +25,8 @@ trap cleanup EXIT
 # make sure we're in the right directory
 cd "$(dirname "$0")"
 
-cp "$CONFIG_FILE" "$SCRIPT_DIR"
+cp "$SEED_FILE" "$SCRIPT_DIR"
 
 cd "$SCRIPT_DIR"
 
-go run . -mod=vendor
-
-rm -f "$CONFIG_FILE"
+go run -mod=vendor .
