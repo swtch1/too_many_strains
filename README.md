@@ -4,7 +4,7 @@ Do you have so many strains of Mary Jane that you can't keep up with all of them
 but a problem none the less.  Use this server to track all of those strains and their associated traits so you
 can get to that sticky info when you need it.
 
-# Features
+## Features
 - fast, concurrent API for creation, reading, updating, and deleting strain traits
 - automatic database setup/migration
 - database seeding through JSON file ingestion
