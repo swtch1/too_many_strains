@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/swtch1/too_many_strains/cmd/server/cli"
 	"github.com/swtch1/too_many_strains/pkg"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -21,6 +22,16 @@ var (
 func main() {
 	cli.Init(appName, buildVersion)
 	tms.InitLogger(os.Stderr, cli.LogLevel, cli.LogFormat, cli.PrettyPrintJsonLogs)
+
+	db := tms.DBServer{
+		Username: "root",
+		Password: "password",
+		Name:     "so_many_strains",
+	}
+	if err := db.Open(); err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
 
 	//srv := tms.Server{
 	//	Port: cli.Port,
