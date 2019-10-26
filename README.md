@@ -40,7 +40,7 @@ To run integration testing as well, enable the integration flag.
 go test -v ./... -args -Integration=true
 ```
 
-Integration tests assumes you are connecting to a database.  This can be fully fledged database
+Integration tests will connect to a database for end-to-end testing.  This can be fully fledged database
 server or a local test database in a container.  A testing database will be created on the server
 and deleted after the tests are run.
 
