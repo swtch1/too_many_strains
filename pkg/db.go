@@ -13,21 +13,22 @@ const DefaultDatabaseName = "so_many_strains"
 var (
 	ErrDatabaseNameNotSet     = errors.New("database name was not set")
 	ErrDatabaseUsernameNotSet = errors.New("database username was not set")
+	ErrDatabaseVersionNewer   = errors.New("the actual database version is newer than the desired migration version")
 )
 
 // DBServer is the database server where records will be stored and queried.
 type DBServer struct {
 	// Name of the logical database on the server.
 	Name string
-	// Iteration tracks the current iteration of the database schema.  Migrate() must be called on the
-	// database to ensure the current schema is up to date with Iteration.
-	Iteration int16
-	Username  string
-	Password  string
+	// DBIteration tracks the current iteration of the database schema.  Migrate() must be called on the
+	// database to ensure the current schema is up to date with DBIteration.
+	DBIteration int16
+	Username    string
+	Password    string
 
 	// DB is the database connection through which all transactions are brokered.
 	DB *gorm.DB
-	// isOpen is true when the database connection is open
+	// isOpen is true when the database connection is open.
 	isOpen bool
 }
 
@@ -69,16 +70,18 @@ func (srv *DBServer) Close() error {
 
 // Migrate will migrate the database to ensure the current version of the schema.
 func (srv *DBServer) Migrate() error {
-	if srv.Iteration == 0 {
-		srv.Iteration = 1
+	migrationFailedMsg := fmt.Sprintf("database migration to version %d failed", srv.DBIteration)
+
+	if srv.DBIteration == 0 {
+		srv.DBIteration = 1
 	}
 
 	if err := srv.ensureDatabase(); err != nil {
-		return errors.Wrapf(err, "database migration to version %d failed", srv.Iteration)
+		return errors.Wrap(err, migrationFailedMsg)
 	}
 	if !srv.isOpen {
 		if err := srv.Open(); err != nil {
-			return errors.Wrapf(err, "database migration to version %d failed", srv.Iteration)
+			return errors.Wrapf(err, migrationFailedMsg)
 		}
 	}
 
@@ -89,22 +92,21 @@ func (srv *DBServer) Migrate() error {
 		&Flavor{},
 		&Effect{},
 	)
-	srv.setVersion()
+	if err := srv.updateSchemaVersion(); err != nil {
+		return errors.Wrap(err, migrationFailedMsg)
+	}
 	return nil
 }
 
-func (srv *DBServer) setVersion() {
-	srv.DB.Where(DatabaseVer{Iteration: srv.Iteration})
-}
-
-// IsLatestVersion is true if the database schema is consistent with the current version.
-func (srv *DBServer) IsLatestVersion() bool {
-	if !srv.DB.HasTable("version") {
-		return false
+// updateSchemaVersion ensures the database version is set in the database.
+func (srv *DBServer) updateSchemaVersion() error {
+	var verFromDB DatabaseVer
+	if srv.DB.First(&verFromDB); verFromDB.Iteration > srv.DBIteration {
+		return ErrDatabaseVersionNewer
 	}
-	ver := DatabaseVer{Iteration: srv.Iteration}
-	srv.DB.Where("").First(&ver) // FIXME: testing
-	return true
+
+	ver := DatabaseVer{Iteration: srv.DBIteration}
+	return srv.DB.Assign(ver).FirstOrCreate(&ver).Error
 }
 
 // validateConfig ensures that initial values are set so that we can short-circuit configurations
