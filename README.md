@@ -30,7 +30,7 @@ go run . --database-seed-file ../../strains.json
 ```
 
 ## Testing
-Unit tests should be run from the main directory in the normal way.
+Unit tests should be run from the root directory in the normal way.
 ```bash
 go test -v ./...
 ```
