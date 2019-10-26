@@ -10,6 +10,25 @@ can get to that sticky info when you need it.
 - database seeding through JSON file ingestion
 - well tested, of course
 
+## Database Initialization and Migration
+When bootstrapping your database, you will want to run the migration script.  If using a fresh database server
+the migration script will create all of the necessary tables, or upgrade to the latest version of the schema
+if the database is not on the correct version.
+
+Run the migration wrapper script to run the migration with defaults.
+```bash
+./migrate_db.sh
+```
+
+Or use a custom configuration from the migration script's directory.
+```bash
+cd cmd/database-migration
+go run . --help
+
+# use strains file from project root
+go run . --database-seed-file ../../strains.json
+```
+
 ## Testing
 Unit tests should be run from the main directory in the normal way.
 ```bash
