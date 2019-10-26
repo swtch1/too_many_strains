@@ -8,10 +8,10 @@ can get to that sticky info when you need it.
 - fast, concurrent API for creation, reading, updating, and deleting strain traits
 - automatic database setup/migration
 - database seeding through JSON file ingestion
-- well tested, of course
+- well tested, of course...
 
 ## Database Initialization and Migration
-When bootstrapping your database, you will want to run the migration script.  If using a fresh database server
+Use the migration script to bootstrap your database.  If using a fresh database server
 the migration script will create all of the necessary tables, or upgrade to the latest version of the schema
 if the database is not on the correct version.
 
