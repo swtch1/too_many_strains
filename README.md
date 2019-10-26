@@ -1,4 +1,4 @@
-# too_many_strains
+# too many strains!
 
 Do you have so many strains of Mary Jane that you can't keep up with all of them?  Now that's my kind if problem...
 but a problem none the less.  Use this server to track all of those strains and their associated traits so you
