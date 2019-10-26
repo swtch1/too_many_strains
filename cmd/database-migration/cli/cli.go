@@ -7,12 +7,11 @@ import (
 )
 
 var (
-	Help                bool
-	Version             bool
-	Port                int32
-	LogLevel            string
-	LogFormat           string
-	PrettyPrintJsonLogs bool
+	Help             bool
+	LogLevel         string
+	DatabaseUsername string
+	DatabasePassword string
+	SeedFile         string
 )
 
 // Init performs setup for the application CLI commands and flags, setting application version as provided.
@@ -21,17 +20,16 @@ func Init(appName, version string) {
 	cmd := &cobra.Command{
 		Use:   appName,
 		Short: appName,
-		Long:  fmt.Sprintf("%s is a Cannabis strains server.", appName),
+		Long:  fmt.Sprintf("%s is a database migration script which will ensure the strain server database is on the correct schema version", appName),
 		Run: func(cmd *cobra.Command, args []string) {
 		},
 	}
 
 	cmd.PersistentFlags().BoolVarP(&Help, "help", "h", false, "Display this help and exit.")
-	cmd.PersistentFlags().BoolVar(&Version, "version", false, "Print the application version and exit.")
-	cmd.PersistentFlags().Int32VarP(&Port, "port", "p", 5000, "Port which the server will listen on.")
 	cmd.PersistentFlags().StringVarP(&LogLevel, "log-level", "l", "info", "Log level should be one of trace, debug, info, warn, error, fatal.")
-	cmd.PersistentFlags().StringVar(&LogFormat, "log-format", "text", "Log format should be one of text, json.")
-	cmd.PersistentFlags().BoolVar(&PrettyPrintJsonLogs, "pretty-json", false, "If writing JSON logs, pretty print those logs.")
+	cmd.PersistentFlags().StringVarP(&DatabaseUsername, "database-username", "u", "root", "The username of the database.")
+	cmd.PersistentFlags().StringVarP(&DatabasePassword, "database-password", "p", "password", "The password of the database.")
+	cmd.PersistentFlags().StringVarP(&SeedFile, "database-seed-file", "f", "./strains.json", "Path to JSON strains file which will seed the database.")
 
 	if err := cmd.Execute(); err != nil {
 		fmt.Println(err)
@@ -39,12 +37,6 @@ func Init(appName, version string) {
 	}
 
 	if Help {
-		os.Exit(0)
-	}
-
-	// handle the version manually since the built in version options for Cobra do not exit after printing
-	if Version {
-		fmt.Printf("%s version %s\n", appName, version)
 		os.Exit(0)
 	}
 }

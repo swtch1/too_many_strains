@@ -2,8 +2,10 @@
 package main
 
 import (
-	"fmt"
 	"github.com/swtch1/too_many_strains/cmd/database-migration/cli"
+	tms "github.com/swtch1/too_many_strains/pkg"
+	"log"
+	"os"
 )
 
 var (
@@ -14,7 +16,16 @@ var (
 
 func main() {
 	cli.Init("migrate", version)
-	fmt.Println(New())
+	tms.InitLogger(os.Stderr, cli.LogLevel, "text", false)
+
+	dbSrv := tms.NewDBServer(tms.DefaultDatabaseName, cli.DatabaseUsername, cli.DatabasePassword)
+	if err := dbSrv.Migrate(); err != nil {
+		log.Fatal(err)
+	}
+	if err := dbSrv.Open(); err != nil {
+		log.Fatal(err)
+	}
+	defer dbSrv.Close()
 }
 
 // New does lots of cool stuff.
