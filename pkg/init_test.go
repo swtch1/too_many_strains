@@ -24,13 +24,14 @@ func TestMain(m *testing.M) {
 
 	setupDB()
 	code := m.Run()
-	cleanupDB()
+	cleanupTables()
 	os.Exit(code)
 }
 
 // setupDB just creates a test database we can integrate with.
 func setupDB() {
 	if Integration {
+		cleanupTables()
 		dbSrv := NewDBServer(TestDatabaseName, "root", "password")
 		if err := dbSrv.Migrate(); err != nil {
 			panic(errors.Wrap(err, "unable to migrate test db"))
@@ -42,16 +43,27 @@ func setupDB() {
 	}
 }
 
-func cleanupDB() {
+func cleanupTables() {
 	// TODO: dropping the database would be better here but initial attempts failed.  this
 	// TODO: method is more brittle, but will do for now.
+	dbSrv := NewDBServer(TestDatabaseName, "root", "password")
+	if err := dbSrv.Open(); err != nil {
+		panic(errors.Wrapf(err, "unable to open test db"))
+	}
 	if Integration {
-		TestDB.DropTable("database_ver")
-		TestDB.DropTable("strain")
-		TestDB.DropTable("effect")
-		TestDB.DropTable("flavor")
-		TestDB.DropTable("strain_effects")
-		TestDB.DropTable("strain_flavors")
+		tables := []string{
+			"database_ver",
+			"strain",
+			"effect",
+			"flavor",
+			"strain_effects",
+			"strain_flavors",
+		}
+		for _, tbl := range tables {
+			if dbSrv.DB.HasTable(tbl) {
+				dbSrv.DB.DropTable(tbl)
+			}
+		}
 	}
 }
 
