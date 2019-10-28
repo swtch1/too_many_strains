@@ -9,7 +9,10 @@ import (
 	"time"
 )
 
-var ErrRecordAlreadyExists = errors.New("the record already exists")
+var (
+	ErrRecordAlreadyExists   = errors.New("the record already exists")
+	ErrDatabaseConnectionNil = errors.New("the given database connection is not connected")
+)
 
 // StrainRepr is the representation of a strain from the JSON input format.
 type StrainRepr []struct {
@@ -60,22 +63,16 @@ type Strain struct {
 	DB *gorm.DB `gorm:"-"`
 }
 
-//// ReplaceInDB either creates or updates the entry in the database.
-//func (s *Strain) ReplaceInDB() error {
-//	tx := s.DB.Begin()
-//	defer tx.Close()
-//	defer tx.Commit()
-//	tx.Model(s)
-//}
-
 // CreateInDB creates the entry in the database.  An error is returned if the create fails, or if the
 // record already exists.
 func (s *Strain) CreateInDB() error {
+	if s.DB == nil {
+		return ErrDatabaseConnectionNil
+	}
 	tx := s.DB.Begin()
 	if err := tx.Error; err != nil {
 		return err
 	}
-	defer tx.Commit()
 	if !tx.NewRecord(s) {
 		return ErrRecordAlreadyExists
 	}
@@ -83,14 +80,51 @@ func (s *Strain) CreateInDB() error {
 		tx.Rollback()
 		return errors.Wrapf(err, "unable to create strain record")
 	}
+	tx.Commit()
 	return nil
 }
 
 // SaveInDB ensures the record is saved in the database.
 func (s *Strain) SaveInDB() error {
+	if s.DB == nil {
+		return ErrDatabaseConnectionNil
+	}
 	tx := s.DB.Begin()
-	defer tx.Commit()
-	return tx.Model(s).Save(s).Error
+	if err := tx.Model(s).Save(s).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+	tx.Commit()
+	return nil
+}
+
+// FlavorsFromDB gets all associated flavors from the database by searching on the strain ReferenceID.
+func (s *Strain) FlavorsFromDBByID() ([]Flavor, error) {
+	var flavors []Flavor
+	if s.DB == nil {
+		return flavors, ErrDatabaseConnectionNil
+	}
+	tx := s.DB.Begin()
+	rows, err := tx.Table("strain_flavors").
+		Select("flavor.name").
+		Joins("JOIN strain ON strain_flavors.strain_strain_id = strain.strain_id").
+		Joins("JOIN flavor ON strain_flavors.flavor_flavor_id = flavor.flavor_id").
+		Where("strain.reference_id = ?", s.ReferenceID).Rows()
+	if err != nil {
+		tx.Rollback()
+		return flavors, err
+	}
+
+	for rows.Next() {
+		var f Flavor
+		if err := rows.Scan(&f.Name); err != nil {
+			tx.Rollback()
+			return flavors, err
+		}
+		flavors = append(flavors, f)
+	}
+	tx.Commit()
+	return flavors, nil
 }
 
 // DatabaseVer tracks the database schema version information.
