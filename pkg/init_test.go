@@ -1,7 +1,7 @@
 package tms
 
 import (
-	"flag"
+	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
 	"os"
@@ -11,12 +11,11 @@ import (
 var (
 	// Integration signals that integration test should be run and can be
 	// configured with `go test ./... -args -Integration=true`
-	Integration bool
+	Integration      bool
+	TestDatabaseName = "test_db"
+	// TestDB which can be used by all tests concurrently.  The
+	TestDB *gorm.DB
 )
-
-func init() {
-	flag.BoolVar(&Integration, "Integration", false, "set true to enable Integration testing")
-}
 
 // do work to initialize the tests
 func TestMain(m *testing.M) {
@@ -34,14 +33,25 @@ func setupDB() {
 	if Integration {
 		dbSrv := NewDBServer(TestDatabaseName, "root", "password")
 		if err := dbSrv.Migrate(); err != nil {
-			panic(errors.Wrap(err, ""))
+			panic(errors.Wrap(err, "unable to migrate test db"))
 		}
+		if err := dbSrv.Open(); err != nil {
+			panic(errors.Wrapf(err, "unable to open test db"))
+		}
+		TestDB = dbSrv.DB
 	}
 }
 
 func cleanupDB() {
+	// TODO: dropping the database would be better here but initial attempts failed.  this
+	// TODO: method is more brittle, but will do for now.
 	if Integration {
-
+		TestDB.DropTable("database_ver")
+		TestDB.DropTable("strain")
+		TestDB.DropTable("effect")
+		TestDB.DropTable("flavor")
+		TestDB.DropTable("strain_effects")
+		TestDB.DropTable("strain_flavors")
 	}
 }
 
