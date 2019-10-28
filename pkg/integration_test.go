@@ -17,6 +17,7 @@ func init() {
 }
 
 func TestMigrateDatabase(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 
 	tests := []struct {
@@ -42,6 +43,7 @@ func TestMigrateDatabase(t *testing.T) {
 }
 
 func TestCreatingStrainInDBUpdatesName(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 
 	tests := []struct {
@@ -70,6 +72,7 @@ func TestCreatingStrainInDBUpdatesName(t *testing.T) {
 }
 
 func TestCreatingStrainInDBUpdatesRace(t *testing.T) {
+	t.Parallel()
 	assert := assert.New(t)
 
 	tests := []struct {
@@ -178,7 +181,63 @@ func TestGettingStrainFromFlavorsFromDBByID(t *testing.T) {
 						match = true
 					}
 				}
-				assert.True(match, "did not find expected flavor %s in returned flavors", expected)
+				assert.True(match, "did not find expected flavor '%s' in returned flavors", expected)
+			}
+		})
+	}
+}
+
+func TestGettingEffectsFromFlavorsFromDBByID(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	tests := []struct {
+		name   string
+		strain Strain
+		// expected values in form map[effect.Name]effect.Category
+		expEffects map[string]string
+	}{
+		{
+			"one_effect",
+			Strain{
+				Name:    "foo",
+				Race:    "xyz",
+				Effects: []Effect{{Name: "happy", Category: "positive"}},
+			},
+			map[string]string{"happy": "positive"},
+		},
+		{
+			"many_effects",
+			Strain{
+				Name:    "foo",
+				Race:    "xyz",
+				Effects: []Effect{{Name: "not_so_happy", Category: "negative"}, {Name: "nausea", Category: "medical"}},
+			},
+			map[string]string{"not_so_happy": "negative", "nausea": "medical"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.strain.Name, func(t *testing.T) {
+			ref := Unique.Next()
+			tt.strain.DB = TestDB
+
+			// push strain with effects in to DB
+			tt.strain.ReferenceID = ref
+			assert.Nil(tt.strain.CreateInDB())
+
+			out := Strain{ReferenceID: ref}
+			out.DB = TestDB
+			effects, err := out.EffectsFromDBByID()
+			assert.Nil(err)
+			for expName, expCategory := range tt.expEffects {
+				var match bool
+				for _, e := range effects {
+					if e.Name == expName && e.Category == expCategory {
+						match = true
+					}
+				}
+				assert.True(match, "did not find expected effect with name '%s' and category '%s' in returned effects", expName, expCategory)
 			}
 		})
 	}

@@ -12,6 +12,7 @@ import (
 var (
 	ErrRecordAlreadyExists   = errors.New("the record already exists")
 	ErrDatabaseConnectionNil = errors.New("the given database connection is not connected")
+	ErrReferenceIDNotSet     = errors.New("the reference ID must be set for this operation")
 )
 
 // StrainRepr is the representation of a strain from the JSON input format.
@@ -27,6 +28,7 @@ type StrainRepr []struct {
 	} `json:"effects"`
 }
 
+// ParseStrains populates a StrainRepr from src.
 func ParseStrains(src io.Reader) (StrainRepr, error) {
 	var s StrainRepr
 
@@ -61,6 +63,20 @@ type Strain struct {
 	Effects []Effect `gorm:"many2many:strain_effects"`
 	// DB is the database instance
 	DB *gorm.DB `gorm:"-"`
+}
+
+// FromDBByReferenceID populates the struct with details from the database by searching on the strain ReferenceID.
+func (s *Strain) FromDBByReferenceID() error {
+	if s.ReferenceID == 0 {
+		return ErrReferenceIDNotSet
+	}
+	tx := s.DB.Begin()
+	if err := tx.Error; err != nil {
+		return err
+		// FIXME: unfinished
+	}
+	tx.Commit()
+	return nil
 }
 
 // CreateInDB creates the entry in the database.  An error is returned if the create fails, or if the
@@ -101,15 +117,22 @@ func (s *Strain) SaveInDB() error {
 // FlavorsFromDB gets all associated flavors from the database by searching on the strain ReferenceID.
 func (s *Strain) FlavorsFromDBByID() ([]Flavor, error) {
 	var flavors []Flavor
+	if s.ReferenceID == 0 {
+		return flavors, ErrReferenceIDNotSet
+	}
 	if s.DB == nil {
 		return flavors, ErrDatabaseConnectionNil
 	}
 	tx := s.DB.Begin()
+	if err := tx.Error; err != nil {
+		return flavors, err
+	}
 	rows, err := tx.Table("strain_flavors").
 		Select("flavor.name").
 		Joins("JOIN strain ON strain_flavors.strain_strain_id = strain.strain_id").
 		Joins("JOIN flavor ON strain_flavors.flavor_flavor_id = flavor.flavor_id").
-		Where("strain.reference_id = ?", s.ReferenceID).Rows()
+		Where("strain.reference_id = ?", s.ReferenceID).
+		Rows()
 	if err != nil {
 		tx.Rollback()
 		return flavors, err
@@ -125,6 +148,38 @@ func (s *Strain) FlavorsFromDBByID() ([]Flavor, error) {
 	}
 	tx.Commit()
 	return flavors, nil
+}
+
+func (s *Strain) EffectsFromDBByID() ([]Effect, error) {
+	var effects []Effect
+	if s.ReferenceID == 0 {
+		return effects, ErrReferenceIDNotSet
+	}
+	tx := s.DB.Begin()
+	if err := tx.Error; err != nil {
+		return effects, err
+	}
+	rows, err := tx.Table("strain_effects").
+		Select("effect.name, effect.category").
+		Joins("JOIN strain ON strain_effects.strain_strain_id = strain.strain_id").
+		Joins("JOIN effect ON strain_effects.effect_effect_id = effect.effect_id").
+		Where("strain.reference_id = ?", s.ReferenceID).
+		Rows()
+	if err != nil {
+		tx.Rollback()
+		return effects, err
+	}
+
+	for rows.Next() {
+		var e Effect
+		if err := rows.Scan(&e.Name, &e.Category); err != nil {
+			tx.Rollback()
+			return effects, err
+		}
+		effects = append(effects, e)
+	}
+	tx.Commit()
+	return effects, nil
 }
 
 // DatabaseVer tracks the database schema version information.
@@ -147,15 +202,6 @@ type Flavor struct {
 	// DB is the database instance
 	DB *gorm.DB `gorm:"-"`
 }
-
-//func (f *Flavor) StrainFromDB() (Strain, error) {  // FIXME: testing
-//	tx := f.DB.Begin()
-//	if err := tx.Error; err != nil {
-//		return Strain{}, err
-//	}
-//	defer tx.Commit()
-//	tx.Where()
-//}
 
 // Effect is the observed effects of the Strain on the user, and is used to directly model the database schema.
 type Effect struct {
