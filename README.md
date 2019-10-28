@@ -49,3 +49,5 @@ When integration testing the database is assumed to have username `root` and pas
 ## Known Issues
 - If, while using the migration script, a new seed file is given where a strain flavor or effect is removed,
 this record and relationship will not be removed from the database.
+- Not so much an issue, but the code is very heavy on integration tests.  These could be run against a local
+container, but refactoring these to unit tests would be more ideal.
