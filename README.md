@@ -37,7 +37,7 @@ go test -v ./...
 
 To run integration testing as well, enable the integration flag.
 ```bash
-go test -v ./... -args -Integration=true
+go test -v ./... -tags=integration
 ```
 
 Integration tests will connect to a database for end-to-end testing.  This can be fully fledged database
@@ -45,3 +45,7 @@ server or a local test database in a container.  A testing database will be crea
 and deleted after the tests are run.
 
 When integration testing the database is assumed to have username `root` and password `password`.
+
+## Known Issues
+- If, while using the migration script, a new seed file is given where a strain flavor or effect is removed,
+this record and relationship will not be removed from the database.
