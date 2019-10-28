@@ -5,10 +5,13 @@ import (
 	"github.com/jinzhu/gorm"
 	_ "github.com/jinzhu/gorm/dialects/mysql"
 	"github.com/pkg/errors"
-	"github.com/swtch1/too_many_strains/cmd/database-migration/cli"
+	log "github.com/sirupsen/logrus"
 )
 
-const DefaultDatabaseName = "so_many_strains"
+const (
+	DefaultDatabaseName = "so_many_strains"
+	DBConnectOptions    = "charset=utf8&parseTime=True&loc=Local"
+)
 
 var (
 	ErrDatabaseNameNotSet     = errors.New("database name was not set")
@@ -22,7 +25,7 @@ type DBServer struct {
 	Name string
 	// DBIteration tracks the current iteration of the database schema.  Migrate() must be called on the
 	// database to ensure the current schema is up to date with DBIteration.
-	DBIteration int16
+	DBIteration uint
 	Username    string
 	Password    string
 
@@ -34,9 +37,9 @@ type DBServer struct {
 
 func NewDBServer(name, username, password string) *DBServer {
 	srv := &DBServer{
-		Username: cli.DatabaseUsername,
-		Password: cli.DatabasePassword,
-		Name:     DefaultDatabaseName,
+		Username: username,
+		Password: password,
+		Name:     name,
 	}
 	return srv
 }
@@ -47,17 +50,21 @@ func (srv *DBServer) Open() error {
 		return err
 	}
 
-	db, err := gorm.Open("mysql", fmt.Sprintf("%s:%s@/%s?charset=utf8", srv.Username, srv.Password, srv.Name))
+	db, err := gorm.Open("mysql", fmt.Sprintf("%s:%s@/%s?%s", srv.Username, srv.Password, srv.Name, DBConnectOptions))
 	if err != nil {
 		return errors.Wrapf(err, "unable to connect to database '%s", srv.Name)
 	}
 	srv.isOpen = true
-
+	db.SingularTable(true)
 	// handle and log errors as they are received
 	db.LogMode(false)
-
 	// don't timeout our connection
 	db.DB().SetConnMaxLifetime(0)
+
+	if err := db.DB().Ping(); err != nil {
+		return errors.Wrapf(err, "unable to ping database '%s' after connection", srv.Name)
+	}
+
 	srv.DB = db
 	return nil
 }
@@ -70,18 +77,16 @@ func (srv *DBServer) Close() error {
 
 // Migrate will migrate the database to ensure the current version of the schema.
 func (srv *DBServer) Migrate() error {
-	migrationFailedMsg := fmt.Sprintf("database migration to version %d failed", srv.DBIteration)
-
 	if srv.DBIteration == 0 {
 		srv.DBIteration = 1
 	}
 
 	if err := srv.ensureDatabase(); err != nil {
-		return errors.Wrap(err, migrationFailedMsg)
+		return errors.Wrap(err, "unable to create database")
 	}
 	if !srv.isOpen {
 		if err := srv.Open(); err != nil {
-			return errors.Wrapf(err, migrationFailedMsg)
+			return errors.Wrapf(err, "unable to open database connection")
 		}
 	}
 
@@ -93,7 +98,7 @@ func (srv *DBServer) Migrate() error {
 		&Effect{},
 	)
 	if err := srv.updateSchemaVersion(); err != nil {
-		return errors.Wrap(err, migrationFailedMsg)
+		return errors.Wrapf(err, "unable to update database to iteration %d", srv.DBIteration)
 	}
 	return nil
 }
@@ -101,8 +106,16 @@ func (srv *DBServer) Migrate() error {
 // updateSchemaVersion ensures the database version is set in the database.
 func (srv *DBServer) updateSchemaVersion() error {
 	var verFromDB DatabaseVer
-	if srv.DB.First(&verFromDB); verFromDB.Iteration > srv.DBIteration {
+	srv.DB.Last(&verFromDB)
+	switch {
+	case verFromDB.Iteration > srv.DBIteration:
+		log.Debugf("version from database %d is greater than current iteration %d", verFromDB.Iteration, srv.DBIteration)
 		return ErrDatabaseVersionNewer
+	case verFromDB.Iteration == srv.DBIteration:
+		log.Infof("database version %d is already the latest", verFromDB.Iteration)
+		return nil
+	default:
+		log.Infof("database version %d is behind desired version %d, updating version tracking table", verFromDB.Iteration, srv.DBIteration)
 	}
 
 	ver := DatabaseVer{Iteration: srv.DBIteration}
@@ -127,13 +140,17 @@ func (srv *DBServer) ensureDatabase() (err error) {
 		return err
 	}
 
-	db, err := gorm.Open("mysql", fmt.Sprintf("%s:%s@/?charset=utf8", srv.Username, srv.Password))
+	db, err := gorm.Open("mysql", fmt.Sprintf("%s:%s@/?%s", srv.Username, srv.Password, DBConnectOptions))
 	if err != nil {
 		return errors.Wrapf(err, "unable to create database '%s'", srv.Name)
 	}
 	defer func() {
 		err = db.Close()
 	}()
+
+	if err := db.DB().Ping(); err != nil {
+		return errors.Wrapf(err, "unable to ping database '%s' after connection", srv.Name)
+	}
 
 	db.Exec(fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s;", srv.Name))
 	return nil
