@@ -8,10 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-const (
-	DefaultDatabaseName = "so_many_strains"
-	DBConnectOptions    = "charset=utf8&parseTime=True&loc=Local"
-)
+const DBConnectOptions = "charset=utf8&parseTime=True&loc=Local"
 
 var (
 	ErrDatabaseNameNotSet     = errors.New("database name was not set")

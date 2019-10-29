@@ -1,6 +1,7 @@
 package tms
 
 import (
+	"fmt"
 	"github.com/jinzhu/gorm"
 	"github.com/pkg/errors"
 	log "github.com/sirupsen/logrus"
@@ -48,7 +49,7 @@ func cleanupTables() {
 	// TODO: method is more brittle, but will do for now.
 	dbSrv := NewDBServer(TestDatabaseName, "root", "password")
 	if err := dbSrv.Open(); err != nil {
-		panic(errors.Wrapf(err, "unable to open test db"))
+		fmt.Printf("%s: unable to open test db", err)
 	}
 	if Integration {
 		tables := []string{
