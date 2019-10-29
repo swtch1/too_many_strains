@@ -11,6 +11,7 @@ var (
 	LogLevel         string
 	DatabaseUsername string
 	DatabasePassword string
+	DatabaseName     string
 	SeedFile         string
 )
 
@@ -27,8 +28,9 @@ func Init(appName, version string) {
 
 	cmd.PersistentFlags().BoolVarP(&Help, "help", "h", false, "Display this help and exit.")
 	cmd.PersistentFlags().StringVarP(&LogLevel, "log-level", "l", "info", "Log level should be one of trace, debug, info, warn, error, fatal.")
-	cmd.PersistentFlags().StringVarP(&DatabaseUsername, "database-username", "u", "root", "The username of the database.")
-	cmd.PersistentFlags().StringVarP(&DatabasePassword, "database-password", "p", "password", "The password of the database.")
+	cmd.PersistentFlags().StringVarP(&DatabaseUsername, "db-username", "u", "root", "The username of the database.")
+	cmd.PersistentFlags().StringVarP(&DatabasePassword, "db-password", "p", "password", "The password of the database.")
+	cmd.PersistentFlags().StringVar(&DatabaseName, "db-name", "so_many_strains", "Name of the logical database.")
 	cmd.PersistentFlags().StringVarP(&SeedFile, "database-seed-file", "f", "./strains.json", "Path to JSON strains file which will seed the database.")
 
 	if err := cmd.Execute(); err != nil {
