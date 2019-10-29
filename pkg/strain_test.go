@@ -21,7 +21,7 @@ func TestParsingStrainsFromJsonGetsName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			strains, err := ParseStrains(TestStrainsReader{})
+			strains, err := ParseStrains(&TestReadWriter{})
 			assert.Nil(err)
 
 			// ensure each item we expect is in at least one of the strains parsed
@@ -52,7 +52,7 @@ func TestParsingStrainsFromJsonGetsRace(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			strains, err := ParseStrains(TestStrainsReader{})
+			strains, err := ParseStrains(&TestReadWriter{})
 			assert.Nil(err)
 
 			// ensure each item we expect is in at least one of the strains parsed
@@ -83,7 +83,7 @@ func TestParsingStrainsFromJsonGetsFlavors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			strains, err := ParseStrains(TestStrainsReader{})
+			strains, err := ParseStrains(&TestReadWriter{})
 			assert.Nil(err)
 
 			// ensure each item we expect is in at least one of the strains parsed
@@ -116,7 +116,7 @@ func TestParsingStrainsFromJsonGetsPositiveEffects(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			strains, err := ParseStrains(TestStrainsReader{})
+			strains, err := ParseStrains(&TestReadWriter{})
 			assert.Nil(err)
 
 			// ensure each item we expect is in at least one of the strains parsed
@@ -135,16 +135,60 @@ func TestParsingStrainsFromJsonGetsPositiveEffects(t *testing.T) {
 	}
 }
 
-// TestStrainsReader provides a simple reader for testing strain JSON.
-type TestStrainsReader struct{}
+func TestWritingStrain(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
 
-func (s TestStrainsReader) Read(p []byte) (int, error) {
+	tests := []struct {
+		name    string
+		strain  Strain
+		expJSON string
+	}{
+		{
+			"basic",
+			Strain{Name: "basic", Race: "sativa"},
+			`{"name":"basic","id":0,"race":"sativa","flavors":[],"effects":{"positive":null,"negative":null,"medical":null}}`,
+		},
+		{
+			"flavors_and_effects",
+			Strain{
+				Name:    "f_and_e",
+				Race:    "hybrid",
+				Flavors: []Flavor{{Name: "f1"}},
+				Effects: []Effect{{Name: "e1", Category: "c1"}},
+			},
+			`{"name":"f_and_e","id":0,"race":"hybrid","flavors":["f1"],"effects":{"positive":null,"negative":null,"medical":null}}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var tstWriter TestReadWriter
+			r := tt.strain.ToStrainRepr()
+			r.Write(&tstWriter)
+			// compare strings so failures are more clear
+			assert.Equal(tt.expJSON, string(tstWriter.val))
+		})
+	}
+}
+
+// TestReadWriter provides a simple reader for testing strain JSON.
+type TestReadWriter struct {
+	val []byte
+}
+
+func (s *TestReadWriter) Read(p []byte) (int, error) {
 	r := bytes.NewReader([]byte(strainsJSON))
 	n, err := r.Read(p)
 	if err != nil {
 		return 0, err
 	}
 	return n, io.EOF
+}
+
+func (s *TestReadWriter) Write(p []byte) (int, error) {
+	s.val = p
+	return 0, nil
 }
 
 var strainsJSON = `

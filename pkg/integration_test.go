@@ -138,50 +138,49 @@ func TestGettingStrainFromFlavorsFromDBByID(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		strain     Strain
-		expFlavors []string
+		baseStrain Strain
+		flavors    []Flavor
 	}{
 		{
 			"one_flavor",
 			Strain{
-				Name:    "foo",
-				Race:    "xyz",
-				Flavors: []Flavor{{Name: "yummy"}},
+				Name: "foo",
+				Race: "xyz",
 			},
-			[]string{"yummy"},
+			[]Flavor{{Name: "yummy"}},
 		},
 		{
 			"many_flavors",
 			Strain{
-				Name:    "foo",
-				Race:    "xyz",
-				Flavors: []Flavor{{Name: "yummy"}, {Name: "tasty"}},
+				Name: "bar",
+				Race: "xyz",
 			},
-			[]string{"yummy", "tasty"},
+			[]Flavor{{Name: "yummy"}, {Name: "tasty"}},
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.strain.Name, func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			ref := Unique.Next()
-			tt.strain.DB = TestDB
+			tt.baseStrain.DB = TestDB
 
 			// push strain with flavors in to DB
-			tt.strain.ReferenceID = ref
-			assert.Nil(tt.strain.CreateInDB())
+			tt.baseStrain.ReferenceID = ref
+			tt.baseStrain.Flavors = tt.flavors
+			assert.Nil(tt.baseStrain.CreateInDB())
 
 			out := Strain{ReferenceID: ref}
 			out.DB = TestDB
-			flavors, err := out.FlavorsFromDBByID()
+			flavors, err := out.FlavorsFromDBByRefID()
 			assert.Nil(err)
-			for _, expected := range tt.expFlavors {
+			for _, f := range tt.flavors {
 				var match bool
-				for _, f := range flavors {
-					if f.Name == expected {
+				for _, fFromDB := range flavors {
+					if f.Name == fFromDB.Name {
 						match = true
 					}
 				}
-				assert.True(match, "did not find expected flavor '%s' in returned flavors", expected)
+				assert.True(match, "did not find expected flavor '&s' in returned flavors", f.Name)
 			}
 		})
 	}
@@ -192,55 +191,167 @@ func TestGettingEffectsFromFlavorsFromDBByID(t *testing.T) {
 	assert := assert.New(t)
 
 	tests := []struct {
-		name   string
-		strain Strain
-		// expected values in form map[effect.Name]effect.Category
-		expEffects map[string]string
+		name       string
+		baseStrain Strain
+		effects    []Effect
 	}{
 		{
 			"one_effect",
 			Strain{
-				Name:    "foo",
-				Race:    "xyz",
-				Effects: []Effect{{Name: "happy", Category: "positive"}},
+				Name: "foo",
+				Race: "xyz",
 			},
-			map[string]string{"happy": "positive"},
+			[]Effect{{Name: "happy", Category: "positive"}},
 		},
 		{
 			"many_effects",
 			Strain{
-				Name:    "foo",
-				Race:    "xyz",
-				Effects: []Effect{{Name: "not_so_happy", Category: "negative"}, {Name: "nausea", Category: "medical"}},
+				Name: "bar",
+				Race: "xyz",
 			},
-			map[string]string{"not_so_happy": "negative", "nausea": "medical"},
+			[]Effect{{Name: "not_so_happy", Category: "negative"}, {Name: "nausea", Category: "medical"}},
 		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.strain.Name, func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			ref := Unique.Next()
-			tt.strain.DB = TestDB
+			tt.baseStrain.DB = TestDB
 
 			// push strain with effects in to DB
-			tt.strain.ReferenceID = ref
-			assert.Nil(tt.strain.CreateInDB())
+			tt.baseStrain.ReferenceID = ref
+			tt.baseStrain.Effects = tt.effects
+			assert.Nil(tt.baseStrain.CreateInDB())
 
 			out := Strain{ReferenceID: ref}
 			out.DB = TestDB
-			effects, err := out.EffectsFromDBByID()
+			effectsFromDB, err := out.EffectsFromDBByRefID()
 			assert.Nil(err)
-			for expName, expCategory := range tt.expEffects {
+			for _, e := range tt.effects {
 				var match bool
-				for _, e := range effects {
-					if e.Name == expName && e.Category == expCategory {
+				for _, eFromDB := range effectsFromDB {
+					if e.Name == eFromDB.Name && e.Category == eFromDB.Category {
 						match = true
 					}
 				}
-				assert.True(match, "did not find expected effect with name '%s' and category '%s' in returned effects", expName, expCategory)
+				assert.True(match, "did not find expected effect with name '%s' and category '%s' in returned effects", e.Name, e.Category)
 			}
 		})
 	}
+}
+
+func TestGettingStrainFromDBByIDHasCorrectFlavors(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	tests := []struct {
+		baseStrain Strain
+		flavors    []Flavor
+		effects    []Effect
+	}{
+		{
+			Strain{
+				Name: "foo",
+				Race: "xyz",
+			},
+			[]Flavor{{Name: "so_gud"}},
+			[]Effect{{Name: "happy", Category: "positive"}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.baseStrain.Name, func(t *testing.T) {
+			ref := Unique.Next()
+			tt.baseStrain.DB = TestDB
+
+			tt.baseStrain.Flavors = tt.flavors
+			tt.baseStrain.Effects = tt.effects
+
+			// push strain with effects in to DB
+			tt.baseStrain.ReferenceID = ref
+			assert.Nil(tt.baseStrain.CreateInDB())
+
+			out := Strain{ReferenceID: ref}
+			out.DB = TestDB
+			err := out.FromDBByRefID()
+			assert.Nil(err)
+			for _, f := range tt.flavors {
+				var match bool
+				for _, fFromDB := range out.Flavors {
+					if f.Name == fFromDB.Name {
+						match = true
+					}
+				}
+				assert.True(match, "did not find expected flavor with name '&s' in returned flavors", f.Name)
+			}
+		})
+	}
+}
+
+func TestGettingStrainFromDBByIDHasCorrectEffects(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	tests := []struct {
+		baseStrain Strain
+		flavors    []Flavor
+		effects    []Effect
+	}{
+		{
+			Strain{
+				Name: "foo",
+				Race: "xyz",
+			},
+			[]Flavor{{Name: "so_gud"}},
+			[]Effect{{Name: "happy", Category: "positive"}},
+		},
+		{
+			Strain{
+				Name: "bar",
+				Race: "zzz",
+			},
+			[]Flavor{{Name: "yums"}},
+			[]Effect{{Name: "sleepy", Category: "medical"}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.baseStrain.Name, func(t *testing.T) {
+			ref := Unique.Next()
+			tt.baseStrain.DB = TestDB
+
+			tt.baseStrain.Flavors = tt.flavors
+			tt.baseStrain.Effects = tt.effects
+
+			// push strain with effects in to DB
+			tt.baseStrain.ReferenceID = ref
+			assert.Nil(tt.baseStrain.CreateInDB())
+
+			out := Strain{ReferenceID: ref}
+			out.DB = TestDB
+			err := out.FromDBByRefID()
+			assert.Nil(err)
+			for _, e := range tt.effects {
+				var match bool
+				for _, eFromDB := range out.Effects {
+					if e.Name == eFromDB.Name && e.Category == eFromDB.Category {
+						match = true
+					}
+				}
+				assert.True(match, "did not find expected effect with name '&s' and category '%s' in returned effects", e.Name, e.Category)
+			}
+		})
+	}
+}
+
+func TestGettingStrainFromDBByIDWithNoRecordReturnsError(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+	var refThatDoesNotExist uint = 9999999999
+	out := Strain{ReferenceID: refThatDoesNotExist}
+	out.DB = TestDB
+	err := out.FromDBByRefID()
+	assert.Equal(ErrNotExists, err)
 }
 
 type uniqueNum struct {
