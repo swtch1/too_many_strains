@@ -3,9 +3,9 @@ package main
 
 import (
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"github.com/swtch1/too_many_strains/cmd/server/cli"
 	"github.com/swtch1/too_many_strains/pkg"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -24,22 +24,23 @@ func main() {
 	tms.InitLogger(os.Stderr, cli.LogLevel, cli.LogFormat, cli.PrettyPrintJsonLogs)
 
 	db := tms.DBServer{
-		Username: "root",
-		Password: "password",
-		Name:     "so_many_strains",
+		Username: cli.DatabaseUsername,
+		Password: cli.DatabasePassword,
+		Name:     cli.DatabaseName,
 	}
 	if err := db.Open(); err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
 
-	//srv := tms.Server{
-	//	Port: cli.Port,
-	//}
+	srv := tms.Server{
+		Port: cli.Port,
+		DB:   db.DB,
+	}
 
-	//go HandleInterrupt()
-	//log.Infof("starting server on port %d", cli.Port)
-	//log.Fatal(srv.ListenAndServe())
+	go HandleInterrupt()
+	log.Infof("starting server on port %d", cli.Port)
+	log.Fatal(srv.ListenAndServe())
 }
 
 // HandleInterrupt will immediately terminate the server if it detects an interrupt signal.
