@@ -39,6 +39,7 @@ a populated and running database so make sure to connect to one or run the datab
 ./bin/tms &
 
 curl http://127.0.0.1:8888/api/strains/id/1 | jq .
+curl http://127.0.0.1:8888/api/strains/race/sativa | jq .
 ```
 
 ## Testing
