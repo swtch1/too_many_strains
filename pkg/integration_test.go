@@ -100,38 +100,6 @@ func TestCreatingStrainInDBUpdatesRace(t *testing.T) {
 	}
 }
 
-//func TestSavingStrainUpdatesName(t *testing.T) {  // FIXME: may not be needed
-//	t.Parallel()
-//	assert := assert.New(t)
-//
-//	tests := []struct {
-//		name string
-//	}{
-//		{"foo"},
-//		{"bar"},
-//	}
-//
-//	for _, tt := range tests {
-//		t.Run(tt.name, func(t *testing.T) {
-//			var ref uint = Unique.Next()
-//			in := Strain{Name: "first", ReferenceID: ref}
-//			// plug in the db
-//			in.DB = TestDB
-//			// set the reference to verify in the new object
-//			in.ReferenceID = ref
-//			assert.Nil(in.CreateInDB())
-//
-//			in.Name = tt.name
-//			in.SaveInDB()
-//
-//			out := Strain{ReferenceID: ref}
-//			// populate new object
-//			TestDB.Where(&out).First(&out)
-//			assert.Equal(tt.name, out.Name)
-//		})
-//	}
-//}
-
 func TestGettingStrainFromFlavorsFromDBByID(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
