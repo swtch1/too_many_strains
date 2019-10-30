@@ -393,8 +393,25 @@ type StrainRepr struct {
 	DB *gorm.DB `json:"-"`
 }
 
-// ReplaceInDB will create the strain record in the database.
+// CreateInDB will create the strain record in the database.  An error is returned if the strain ID already exists.
+func (rs *StrainRepr) CreateInDB() error {
+	if rs.DB == nil {
+		return ErrDatabaseConnectionNil
+	}
+	var count int
+	rs.DB.Select("strain").Where("strain.reference_id = ?", rs.ID).Count(&count)
+	if count > 0 {
+		return ErrRecordAlreadyExists
+	}
+	return rs.ReplaceInDB()
+}
+
+// ReplaceInDB will create or replace the strain record in the database.
 func (rs *StrainRepr) ReplaceInDB() error {
+	if rs.DB == nil {
+		return ErrDatabaseConnectionNil
+	}
+
 	var flavors []Flavor
 	for _, flavor := range rs.Flavors {
 		f := Flavor{Name: flavor}

@@ -20,6 +20,7 @@ type Server struct {
 	DB *gorm.DB
 }
 
+// ListenAndServer starts the API server.
 func (s *Server) ListenAndServe() error {
 	r := mux.NewRouter()
 	r.HandleFunc("/api/strains/", s.CreateStrainHandler).Methods("POST")
@@ -41,6 +42,7 @@ func (s *Server) ListenAndServe() error {
 	return httpSrv.ListenAndServe()
 }
 
+// StrainByIDHandler handles API requests for strains by the strain ID.
 func (s *Server) StrainByIDHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	strain := s.newStrain()
@@ -73,26 +75,47 @@ func (s *Server) StrainByIDHandler(w http.ResponseWriter, r *http.Request) {
 		_, _ = fmt.Fprintf(w, "\n")
 
 	case http.MethodPut:
+		// TODO: handle list of strains.. current method only handle one strain
+		repr, err := ParseStrain(r.Body)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = fmt.Fprintf(w, "invalid strain json")
+			return
+		}
+
+		repr.DB = s.DB
+		err = repr.ReplaceInDB()
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = fmt.Fprintf(w, "unable to update strain with ID %d", repr.ID)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		// TODO: write https instead if they are using TLS
+		_, _ = fmt.Fprintf(w, `{"link"":"http://%s/api/strains/id/%d"}`, r.Host, repr.ID)
 
 	default:
 		w.WriteHeader(http.StatusNotFound)
-		_, _ = fmt.Fprintf(w, "404 page not found\n")
+		_, _ = fmt.Fprintf(w, "page not found\n")
 	}
 }
 
+// CreateStrainHandler handles API requests to write new strains.
 func (s *Server) CreateStrainHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:
 		repr, err := ParseStrain(r.Body)
 		if err != nil {
-			panic(err)
+			w.WriteHeader(http.StatusBadRequest)
+			_, _ = fmt.Fprintf(w, "invalid strain json")
+			return
 		}
 
 		repr.DB = s.DB
-		err = repr.ReplaceInDB()
+		err = repr.CreateInDB()
 		if err == ErrRecordAlreadyExists {
 			w.WriteHeader(http.StatusConflict)
-			_, _ = fmt.Fprintf(w, "409 strain with ID %d already exists\n", repr.ID)
+			_, _ = fmt.Fprintf(w, "strain with ID %d already exists\n", repr.ID)
 			return
 		} else if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
@@ -106,10 +129,11 @@ func (s *Server) CreateStrainHandler(w http.ResponseWriter, r *http.Request) {
 
 	default:
 		w.WriteHeader(http.StatusNotFound)
-		_, _ = fmt.Fprintf(w, "404 page not found\n")
+		_, _ = fmt.Fprintf(w, "page not found\n")
 	}
 }
 
+// StrainByNameHandler handles API requests for strains by the strain name.
 func (s *Server) StrainByNameHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	strain := s.newStrain()
@@ -135,10 +159,11 @@ func (s *Server) StrainByNameHandler(w http.ResponseWriter, r *http.Request) {
 
 	default:
 		w.WriteHeader(http.StatusNotFound)
-		_, _ = fmt.Fprintf(w, "404 page not found\n")
+		_, _ = fmt.Fprintf(w, "page not found\n")
 	}
 }
 
+// StrainByRaceHandler handles API requests for strains by race.
 func (s *Server) StrainByRaceHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	strains := s.newStrains()
@@ -159,10 +184,11 @@ func (s *Server) StrainByRaceHandler(w http.ResponseWriter, r *http.Request) {
 		_, _ = fmt.Fprintf(w, string(b))
 	default:
 		w.WriteHeader(http.StatusNotFound)
-		_, _ = fmt.Fprintf(w, "404 page not found\n")
+		_, _ = fmt.Fprintf(w, "page not found\n")
 	}
 }
 
+// StrainByFlavorHandler handles API requests for strains by flavor.
 func (s *Server) StrainByFlavorHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	strains := s.newStrains()
@@ -183,10 +209,11 @@ func (s *Server) StrainByFlavorHandler(w http.ResponseWriter, r *http.Request) {
 		_, _ = fmt.Fprintf(w, string(b))
 	default:
 		w.WriteHeader(http.StatusNotFound)
-		_, _ = fmt.Fprintf(w, "404 page not found\n")
+		_, _ = fmt.Fprintf(w, "page not found\n")
 	}
 }
 
+// StrainByEffectHandler handles API requests for strains by Effect.
 func (s *Server) StrainByEffectHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	strains := s.newStrains()
@@ -207,7 +234,7 @@ func (s *Server) StrainByEffectHandler(w http.ResponseWriter, r *http.Request) {
 		_, _ = fmt.Fprintf(w, string(b))
 	default:
 		w.WriteHeader(http.StatusNotFound)
-		_, _ = fmt.Fprintf(w, "404 page not found\n")
+		_, _ = fmt.Fprintf(w, "page not found\n")
 	}
 }
 
