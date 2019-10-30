@@ -20,8 +20,11 @@ var (
 // Strain stores all information about each strain and associated traits, and is used to directly model
 // the database schema.
 type Strain struct {
-	CreatedAt time.Time  `json:"-"`
-	UpdatedAt time.Time  `json:"-"`
+	// CreatedAt is the record creation time, handled by gorm.
+	CreatedAt time.Time `json:"-"`
+	// CreatedAt is the record update time, handled by gorm.
+	UpdatedAt time.Time `json:"-"`
+	// DeletedAt is the record deletion time, when using soft deletes in gorm.
 	DeletedAt *time.Time `json:"-"`
 	// StrainID is the unique identifier of the record in the database, not to be confused with the ReferenceID. This
 	// field will auto update.
@@ -32,9 +35,12 @@ type Strain struct {
 	// Name is the name of the strain.
 	Name string `gorm:"not null"`
 	// Race indicates the strain's genetic makeup.
-	Race    string
+	Race string
+	// Flavors stores all flavors of the strain.
 	Flavors []Flavor `gorm:"many2many:strain_flavors"`
+	// Effects stores side effects and their category.
 	Effects []Effect `gorm:"many2many:strain_effects"`
+
 	// DB is the database instance
 	DB *gorm.DB `gorm:"-" json:"-"`
 }
@@ -75,7 +81,7 @@ func (s *Strain) createWithRetries(max, attempts int, err error) error {
 	return nil
 }
 
-// FromDBByRefID populates the struct with details from the database by searching on the strain ReferenceID.
+// FromDBByRefID populates the struct with details from the database by searching on the strain id.
 func (s *Strain) FromDBByRefID(id uint) error {
 	if s.DB == nil {
 		return ErrDatabaseConnectionNil
@@ -101,6 +107,7 @@ func (s *Strain) FromDBByRefID(id uint) error {
 	return nil
 }
 
+// FromDBByName populates the struct with details from the database by searching on the strain name.
 func (s *Strain) FromDBByName(name string) error {
 	if s.DB == nil {
 		return ErrDatabaseConnectionNil
@@ -125,7 +132,7 @@ func (s *Strain) FromDBByName(name string) error {
 	return nil
 }
 
-// FlavorsFromDB gets all associated flavors from the database by searching on the strain ReferenceID.
+// FlavorsFromDB gets all associated flavors from the database by searching on the strain id.
 func (s *Strain) FlavorsFromDBByRefID(id uint) (Flavors, error) {
 	var flavors []Flavor
 	if s.DB == nil {
@@ -151,6 +158,7 @@ func (s *Strain) FlavorsFromDBByRefID(id uint) (Flavors, error) {
 	return flavors, nil
 }
 
+// EffectsFromDBByRefID gets all associated effects from the database by searching on the strain id.
 func (s *Strain) EffectsFromDBByRefID(id uint) (Effects, error) {
 	var effects Effects
 	rows, err := s.DB.Table("strain_effects").
@@ -206,6 +214,7 @@ type Strains struct {
 	DB      *gorm.DB
 }
 
+// FromDBByRace populates the struct with all strains from the database by searching on strain race.
 func (s *Strains) FromDBByRace(race string) error {
 	if s.DB == nil {
 		return ErrDatabaseConnectionNil
@@ -236,7 +245,7 @@ func (s *Strains) FromDBByRace(race string) error {
 	return nil
 }
 
-// FromDBByFlavor populates the Strains struct from the database by searching on strain flavor names.
+// FromDBByFlavor populates the struct with all strains from the database by searching on strain flavor names.
 func (s *Strains) FromDBByFlavor(flavor string) error {
 	if s.DB == nil {
 		return ErrDatabaseConnectionNil
@@ -269,6 +278,7 @@ func (s *Strains) FromDBByFlavor(flavor string) error {
 	return nil
 }
 
+// FromDBByEffect populates the struct with all strains from the database by searching on strain effect name and category.
 func (s *Strains) FromDBByEffect(effect string) error {
 	if s.DB == nil {
 		return ErrDatabaseConnectionNil
@@ -487,6 +497,7 @@ func (rs *StrainRepr) ReplaceInDB() error {
 	return nil
 }
 
+// ParseStrain populates a StrainRepr from src.
 func ParseStrain(src io.Reader) (StrainRepr, error) {
 	var r StrainRepr
 	b, err := ioutil.ReadAll(src)
@@ -500,9 +511,9 @@ func ParseStrain(src io.Reader) (StrainRepr, error) {
 	return r, nil
 }
 
-// ParseStrains populates a StrainRepr from src.
-func ParseStrains(src io.Reader) ([]StrainRepr, error) {
-	var r []StrainRepr
+// ParseStrains populates a StrainReprs from src.
+func ParseStrains(src io.Reader) (StrainReprs, error) {
+	var r StrainReprs
 	b, err := ioutil.ReadAll(src)
 	if err != nil {
 		return r, errors.Wrap(err, "unable to read strains")
