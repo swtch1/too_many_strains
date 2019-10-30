@@ -14,7 +14,7 @@ var (
 	ErrRecordAlreadyExists   = errors.New("the record already exists")
 	ErrNotExists             = errors.New("the record does not exist")
 	ErrDatabaseConnectionNil = errors.New("the given database connection is not connected")
-	ErrReferenceIDNotSet     = errors.New("the reference ID must be set for this operation") // FIXME: remove if not necessary
+	ErrReferenceIDNotSet     = errors.New("the reference ID must be set for this operation")
 )
 
 // Strain stores all information about each strain and associated traits, and is used to directly model
@@ -49,7 +49,7 @@ func (s *Strain) CreateInDB() error {
 		return ErrReferenceIDNotSet
 	}
 
-	if !s.DB.NewRecord(s) { // FIXME: testing
+	if !s.DB.NewRecord(s) {
 		return ErrRecordAlreadyExists
 	}
 
@@ -75,66 +75,6 @@ func (s *Strain) createWithRetries(max, attempts int, err error) error {
 	return nil
 }
 
-//// ReplaceInDB ensures the record is saved in the database.  // FIXME: may not be needed
-//func (s *Strain) SaveInDB() error {
-//	if s.DB == nil {
-//		return ErrDatabaseConnectionNil
-//	}
-//	if err := s.DB.Model(s).Save(s).Error; err != nil {
-//		return err
-//	}
-//	return nil
-//}
-
-//func (s *Strain) ReplaceInDB() error {  // FIXME: testing
-//	// get values for flavors
-//	// get values for effects
-//	// remove from strain_flavors
-//	// remove from strain_effects
-//	// push to db
-//
-//	var flavors []Flavor
-//	for _, flavor := range rs.Flavors {
-//		f := Flavor{Name: flavor}
-//		rs.DB.Model(&f).Where(&f).FirstOrCreate(&f)
-//		flavors = append(flavors, f)
-//	}
-//
-//	var effects []Effect
-//	for _, effect := range rs.Effects.Positive {
-//		e := Effect{Name: effect, Category: "positive"}
-//		rs.DB.Model(&e).Where(&e).FirstOrCreate(&e)
-//		effects = append(effects, e)
-//	}
-//	for _, effect := range rs.Effects.Negative {
-//		e := Effect{Name: effect, Category: "negative"}
-//		rs.DB.Model(&e).Where(&e).FirstOrCreate(&e)
-//		effects = append(effects, e)
-//	}
-//	for _, effect := range rs.Effects.Medical {
-//		e := Effect{Name: effect, Category: "medical"}
-//		rs.DB.Model(&e).Where(&e).FirstOrCreate(&e)
-//		effects = append(effects, e)
-//	}
-//
-//	//var s Strain
-//	//s.ReferenceID = rs.ID
-//	//rs.DB.Model(&s).Where(&s).FirstOrCreate(&s)
-//	//
-//	//// TODO: should we remove the existing records from strain_effects and strain_flavors here first?
-//	//
-//	//s.Name = rs.Name
-//	//s.Race = rs.Race
-//	//s.Flavors = flavors
-//	//s.Effects = effects
-//	//
-//	//log.Debugf("updating record for strain %s with ID %d", s.Name, rs.ID)
-//	//if err := rs.DB.Model(&s).Save(&s).Error; err != nil {
-//	//	return errors.Wrapf(err, "unable to save record for strain with ID %d", rs.ID)
-//	//}
-//	//return nil
-//}
-
 // FromDBByRefID populates the struct with details from the database by searching on the strain ReferenceID.
 func (s *Strain) FromDBByRefID(id uint) error {
 	if s.DB == nil {
@@ -152,6 +92,30 @@ func (s *Strain) FromDBByRefID(id uint) error {
 		return err
 	}
 	effects, err := s.EffectsFromDBByRefID(id)
+	if err != nil {
+		return err
+	}
+	s.Flavors = flavors
+	s.Effects = effects
+
+	return nil
+}
+
+func (s *Strain) FromDBByName(name string) error {
+	if s.DB == nil {
+		return ErrDatabaseConnectionNil
+	}
+	var c uint
+	s.Name = name
+	s.DB.Model(&s).Where(&s).First(&s).Count(&c)
+	if c < 1 {
+		return ErrNotExists
+	}
+	flavors, err := s.FlavorsFromDBByRefID(s.ReferenceID)
+	if err != nil {
+		return err
+	}
+	effects, err := s.EffectsFromDBByRefID(s.ReferenceID)
 	if err != nil {
 		return err
 	}
@@ -240,14 +204,6 @@ func (s *Strain) ToStrainRepr() StrainRepr {
 type Strains struct {
 	strains []Strain
 	DB      *gorm.DB
-}
-
-func (s *Strains) ToStrainRepr() StrainReprs {
-	var reprs []StrainRepr
-	for _, strain := range s.strains {
-		reprs = append(reprs, strain.ToStrainRepr())
-	}
-	return reprs
 }
 
 func (s *Strains) FromDBByRace(race string) error {
@@ -343,6 +299,14 @@ func (s *Strains) FromDBByEffect(effect string) error {
 		s.strains = append(s.strains, strain)
 	}
 	return nil
+}
+
+func (s *Strains) ToStrainRepr() StrainReprs {
+	var reprs []StrainRepr
+	for _, strain := range s.strains {
+		reprs = append(reprs, strain.ToStrainRepr())
+	}
+	return reprs
 }
 
 // DatabaseVer tracks the database schema version information.

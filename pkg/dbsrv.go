@@ -59,7 +59,7 @@ func (srv *DBServer) Open() error {
 	db.DB().SetConnMaxLifetime(0)
 
 	if err := db.DB().Ping(); err != nil {
-		return errors.Wrapf(err, "unable to ping database '%s' after connection", srv.Name)
+		return errors.Wrapf(err, "unable to ping database %s after connection", srv.Name)
 	}
 
 	srv.DB = db
@@ -139,14 +139,14 @@ func (srv *DBServer) ensureDatabase() (err error) {
 
 	db, err := gorm.Open("mysql", fmt.Sprintf("%s:%s@/?%s", srv.Username, srv.Password, DBConnectOptions))
 	if err != nil {
-		return errors.Wrapf(err, "unable to create database '%s'", srv.Name)
+		return errors.Wrapf(err, "unable to create database %s", srv.Name)
 	}
 	defer func() {
 		err = db.Close()
 	}()
 
 	if err := db.DB().Ping(); err != nil {
-		return errors.Wrapf(err, "unable to ping database '%s' after connection", srv.Name)
+		return errors.Wrapf(err, "unable to ping database %s after connection", srv.Name)
 	}
 
 	db.Exec(fmt.Sprintf("CREATE DATABASE IF NOT EXISTS %s;", srv.Name))
