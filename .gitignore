@@ -16,5 +16,6 @@
 
 # binaries
 .bin
+bin/
 
 playground.go
