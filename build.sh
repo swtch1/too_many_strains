@@ -30,7 +30,7 @@ fi
 rm -rf ./bin
 
 # build
-if ! go build -ldflags "-X main.buildVersion=${VERSION} -X main.appName=${APP}" -v -mod=vendor -o "./bin/${APP}" ./cmd/srv/; then
+if ! go build -ldflags "-X main.buildVersion=${VERSION} -X main.appName=${APP}" -v -mod=vendor -o "./bin/${APP}" ./cmd/server/; then
   exit 1
 fi
 
