@@ -31,8 +31,7 @@ func TestMain(m *testing.M) {
 
 // setupDB just creates a test database we can integrate with.
 func setupDB() {
-	if Integration {
-		cleanupTables()
+	setup := func() {
 		dbSrv := NewDBServer(TestDatabaseName, "root", "password")
 		if err := dbSrv.Migrate(); err != nil {
 			panic(errors.Wrap(err, "unable to migrate test db"))
@@ -41,6 +40,19 @@ func setupDB() {
 			panic(errors.Wrapf(err, "unable to open test db"))
 		}
 		TestDB = dbSrv.DB
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			// we may panic on cleanupTables if the DB doesn't exist, but it's helpful
+			// to run it pre-tests anyway just to ensure consistency.  just recover and
+			// keep going.
+			setup()
+		}
+	}()
+	if Integration {
+		cleanupTables()
+		setup()
 	}
 }
 

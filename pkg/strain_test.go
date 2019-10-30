@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"github.com/stretchr/testify/assert"
 	"io"
+	"log"
 	"testing"
 )
 
@@ -32,7 +33,7 @@ func TestParsingStrainsFromJsonGetsName(t *testing.T) {
 						match = true
 					}
 				}
-				assert.True(match, "failed to find expected name '%s' in strain", name)
+				assert.True(match, "failed to find expected name %s in strain", name)
 			}
 		})
 	}
@@ -63,7 +64,7 @@ func TestParsingStrainsFromJsonGetsRace(t *testing.T) {
 						match = true
 					}
 				}
-				assert.True(match, "failed to find expected race '%s' in strain", race)
+				assert.True(match, "failed to find expected race %s in strain", race)
 			}
 		})
 	}
@@ -96,7 +97,7 @@ func TestParsingStrainsFromJsonGetsFlavors(t *testing.T) {
 						}
 					}
 				}
-				assert.True(match, "failed to find expected flavor '%s' in strain", flavor)
+				assert.True(match, "failed to find expected flavor %s in strain", flavor)
 			}
 		})
 	}
@@ -129,7 +130,7 @@ func TestParsingStrainsFromJsonGetsPositiveEffects(t *testing.T) {
 						}
 					}
 				}
-				assert.True(match, "failed to find expected effect '%s' in strain", effect)
+				assert.True(match, "failed to find expected effect %s in strain", effect)
 			}
 		})
 	}
@@ -168,6 +169,43 @@ func TestWritingStrain(t *testing.T) {
 			r.Write(&tstWriter)
 			// compare strings so failures are more clear
 			assert.Equal(tt.expJSON, string(tstWriter.val))
+		})
+	}
+}
+
+func TestDifferencingEffects(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	tests := []struct {
+		name              string
+		srcEffects        Effects
+		comparisonEffects Effects
+		exp               Effects
+	}{
+		{
+			"no_difference",
+			Effects{Effect{Name: "foo", Category: "bar"}},
+			Effects{Effect{Name: "foo", Category: "bar"}},
+			nil,
+		},
+		{
+			"name_difference",
+			Effects{Effect{Name: "foo", Category: "bar"}},
+			Effects{Effect{Name: "bar", Category: "bar"}},
+			Effects{Effect{Name: "foo", Category: "bar"}},
+		},
+		{
+			"name_difference",
+			Effects{Effect{Name: "foo", Category: "bar"}},
+			Effects{Effect{Name: "bar", Category: "bar"}},
+			Effects{Effect{Name: "foo", Category: "bar"}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(tt.exp, tt.srcEffects.Difference(tt.comparisonEffects))
 		})
 	}
 }
@@ -236,3 +274,15 @@ var strainsJSON = `
 	}
 ]
 `
+
+func TestIgnoreMe(t *testing.T) { // FIXME: testing
+	var s Strains
+	dbSrv := NewDBServer("so_many_strains", "root", "password")
+	dbSrv.DBIteration = 1
+	if err := dbSrv.Open(); err != nil {
+		log.Fatal(err)
+	}
+	defer dbSrv.Close()
+	s.DB = dbSrv.DB
+	s.FromDBByRace("indica")
+}

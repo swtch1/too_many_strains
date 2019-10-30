@@ -100,37 +100,37 @@ func TestCreatingStrainInDBUpdatesRace(t *testing.T) {
 	}
 }
 
-func TestSavingStrainUpdatesName(t *testing.T) {
-	t.Parallel()
-	assert := assert.New(t)
-
-	tests := []struct {
-		name string
-	}{
-		{"foo"},
-		{"bar"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			var ref uint = Unique.Next()
-			in := Strain{Name: "first", ReferenceID: ref}
-			// plug in the db
-			in.DB = TestDB
-			// set the reference to verify in the new object
-			in.ReferenceID = ref
-			assert.Nil(in.CreateInDB())
-
-			in.Name = tt.name
-			in.SaveInDB()
-
-			out := Strain{ReferenceID: ref}
-			// populate new object
-			TestDB.Where(&out).First(&out)
-			assert.Equal(tt.name, out.Name)
-		})
-	}
-}
+//func TestSavingStrainUpdatesName(t *testing.T) {  // FIXME: may not be needed
+//	t.Parallel()
+//	assert := assert.New(t)
+//
+//	tests := []struct {
+//		name string
+//	}{
+//		{"foo"},
+//		{"bar"},
+//	}
+//
+//	for _, tt := range tests {
+//		t.Run(tt.name, func(t *testing.T) {
+//			var ref uint = Unique.Next()
+//			in := Strain{Name: "first", ReferenceID: ref}
+//			// plug in the db
+//			in.DB = TestDB
+//			// set the reference to verify in the new object
+//			in.ReferenceID = ref
+//			assert.Nil(in.CreateInDB())
+//
+//			in.Name = tt.name
+//			in.SaveInDB()
+//
+//			out := Strain{ReferenceID: ref}
+//			// populate new object
+//			TestDB.Where(&out).First(&out)
+//			assert.Equal(tt.name, out.Name)
+//		})
+//	}
+//}
 
 func TestGettingStrainFromFlavorsFromDBByID(t *testing.T) {
 	t.Parallel()
@@ -169,9 +169,8 @@ func TestGettingStrainFromFlavorsFromDBByID(t *testing.T) {
 			tt.baseStrain.Flavors = tt.flavors
 			assert.Nil(tt.baseStrain.CreateInDB())
 
-			out := Strain{ReferenceID: ref}
-			out.DB = TestDB
-			flavors, err := out.FlavorsFromDBByRefID()
+			out := Strain{DB: TestDB}
+			flavors, err := out.FlavorsFromDBByRefID(ref)
 			assert.Nil(err)
 			for _, f := range tt.flavors {
 				var match bool
@@ -223,9 +222,8 @@ func TestGettingEffectsFromFlavorsFromDBByID(t *testing.T) {
 			tt.baseStrain.Effects = tt.effects
 			assert.Nil(tt.baseStrain.CreateInDB())
 
-			out := Strain{ReferenceID: ref}
-			out.DB = TestDB
-			effectsFromDB, err := out.EffectsFromDBByRefID()
+			out := Strain{DB: TestDB}
+			effectsFromDB, err := out.EffectsFromDBByRefID(ref)
 			assert.Nil(err)
 			for _, e := range tt.effects {
 				var match bool
@@ -234,7 +232,7 @@ func TestGettingEffectsFromFlavorsFromDBByID(t *testing.T) {
 						match = true
 					}
 				}
-				assert.True(match, "did not find expected effect with name '%s' and category '%s' in returned effects", e.Name, e.Category)
+				assert.True(match, "did not find expected effect with name %s and category %s in returned effects", e.Name, e.Category)
 			}
 		})
 	}
@@ -271,9 +269,8 @@ func TestGettingStrainFromDBByIDHasCorrectFlavors(t *testing.T) {
 			tt.baseStrain.ReferenceID = ref
 			assert.Nil(tt.baseStrain.CreateInDB())
 
-			out := Strain{ReferenceID: ref}
-			out.DB = TestDB
-			err := out.FromDBByRefID()
+			out := Strain{DB: TestDB}
+			err := out.FromDBByRefID(ref)
 			assert.Nil(err)
 			for _, f := range tt.flavors {
 				var match bool
@@ -327,9 +324,8 @@ func TestGettingStrainFromDBByIDHasCorrectEffects(t *testing.T) {
 			tt.baseStrain.ReferenceID = ref
 			assert.Nil(tt.baseStrain.CreateInDB())
 
-			out := Strain{ReferenceID: ref}
-			out.DB = TestDB
-			err := out.FromDBByRefID()
+			out := Strain{DB: TestDB}
+			err := out.FromDBByRefID(ref)
 			assert.Nil(err)
 			for _, e := range tt.effects {
 				var match bool
@@ -338,8 +334,84 @@ func TestGettingStrainFromDBByIDHasCorrectEffects(t *testing.T) {
 						match = true
 					}
 				}
-				assert.True(match, "did not find expected effect with name '&s' and category '%s' in returned effects", e.Name, e.Category)
+				assert.True(match, "did not find expected effect with name '&s' and category %s in returned effects", e.Name, e.Category)
 			}
+		})
+	}
+}
+
+func TestReplacingStrainReprInDBDeletesSuperfluousFlavors(t *testing.T) {
+	t.Parallel()
+	assert := assert.New(t)
+
+	tests := []struct {
+		name string
+		repr StrainRepr
+	}{
+		{
+			"basic",
+			StrainRepr{
+				Name:    "foo",
+				Race:    "",
+				Flavors: []string{"bubblegunm"},
+				Effects: struct {
+					Positive []string `json:"positive"`
+					Negative []string `json:"negative"`
+					Medical  []string `json:"medical"`
+				}{Positive: []string{"sogud"}, Negative: []string{"notgud"}},
+				DB: nil,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ref := Unique.Next()
+			tt.repr.ID = ref
+			tt.repr.DB = TestDB
+
+			// add a new flavor
+			newFlav := "new_flavor"
+			tt.repr.Flavors = append(tt.repr.Flavors, newFlav)
+			assert.Nil(tt.repr.ReplaceInDB())
+
+			out := Strain{DB: TestDB}
+			err := out.FromDBByRefID(ref)
+			assert.Nil(err)
+
+			var match bool
+			for _, fFromDB := range out.Flavors {
+				if newFlav == fFromDB.Name {
+					match = true
+				}
+			}
+			assert.True(match, "expected test flavor was not found")
+
+			// now remove the flavor to ensure it's cleaned from the table
+			var flavorsMinusNewFlav []string
+			for _, f := range tt.repr.Flavors {
+				if f != newFlav {
+					flavorsMinusNewFlav = append(flavorsMinusNewFlav, f)
+				}
+			}
+			tt.repr.Flavors = flavorsMinusNewFlav
+
+			// perform replacement again which should remove test flavor
+			assert.Nil(tt.repr.ReplaceInDB())
+
+			// get results from DB again
+			out = Strain{DB: TestDB}
+			err = out.FromDBByRefID(ref)
+			assert.Nil(err)
+
+			// test for new flavor, which we do not expect to see
+			match = false
+			for _, fFromDB := range out.Flavors {
+				if newFlav == fFromDB.Name {
+					match = true
+				}
+			}
+			assert.False(match, "expected not to find test flavor in DB")
 		})
 	}
 }
@@ -348,9 +420,8 @@ func TestGettingStrainFromDBByIDWithNoRecordReturnsError(t *testing.T) {
 	t.Parallel()
 	assert := assert.New(t)
 	var refThatDoesNotExist uint = 9999999999
-	out := Strain{ReferenceID: refThatDoesNotExist}
-	out.DB = TestDB
-	err := out.FromDBByRefID()
+	out := Strain{DB: TestDB}
+	err := out.FromDBByRefID(refThatDoesNotExist)
 	assert.Equal(ErrNotExists, err)
 }
 

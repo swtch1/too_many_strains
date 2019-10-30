@@ -26,7 +26,7 @@ func InitLogger(w io.Writer, level string, format string, prettyJson bool) {
 	case "fatal":
 		lvl = log.FatalLevel
 	default:
-		log.Fatalf("unexpected level '%s'", level)
+		log.Fatalf("unexpected level %s", level)
 	}
 
 	var formatter log.Formatter
@@ -37,7 +37,7 @@ func InitLogger(w io.Writer, level string, format string, prettyJson bool) {
 		formatter = &log.TextFormatter{TimestampFormat: logTimestampFmt, FullTimestamp: true}
 	default:
 		formatter = &log.TextFormatter{TimestampFormat: logTimestampFmt, FullTimestamp: true}
-		log.Fatalf("unexpected format '%s'", format)
+		log.Fatalf("unexpected format %s", format)
 
 	}
 	log.SetLevel(lvl)
