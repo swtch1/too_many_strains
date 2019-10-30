@@ -14,7 +14,7 @@ var (
 )
 
 func main() {
-	cli.Init("migrate", "v1")
+	cli.Init("migrate")
 	tms.InitLogger(os.Stderr, cli.LogLevel, "text", false)
 
 	dbSrv := tms.NewDBServer(cli.DatabaseName, cli.DatabaseUsername, cli.DatabasePassword)

@@ -16,7 +16,7 @@ var (
 )
 
 // Init performs setup for the application CLI commands and flags, setting application version as provided.
-func Init(appName, version string) {
+func Init(appName string) {
 	// cmd is the root of our CLI
 	cmd := &cobra.Command{
 		Use:   appName,
