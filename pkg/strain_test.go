@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"github.com/stretchr/testify/assert"
 	"io"
-	"log"
 	"testing"
 )
 
@@ -274,15 +273,3 @@ var strainsJSON = `
 	}
 ]
 `
-
-func TestIgnoreMe(t *testing.T) { // FIXME: testing
-	var s Strains
-	dbSrv := NewDBServer("so_many_strains", "root", "password")
-	dbSrv.DBIteration = 1
-	if err := dbSrv.Open(); err != nil {
-		log.Fatal(err)
-	}
-	defer dbSrv.Close()
-	s.DB = dbSrv.DB
-	s.FromDBByRace("indica")
-}
