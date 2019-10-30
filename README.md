@@ -29,6 +29,18 @@ go run . --help
 go run . --database-seed-file ../../strains.json
 ```
 
+## API Server
+Run the API server to interact with the strains database through RESTful API requests. Note that the server depends on
+a populated and running database so make sure to connect to one or run the database migration first.
+```bash
+./build.sh
+./bin/tms --version
+./bin/tms --help
+./bin/tms &
+
+curl http://127.0.0.1:8888/api/strains/id/1 | jq .
+```
+
 ## Testing
 Unit tests should be run from the root directory in the normal way.
 ```bash
